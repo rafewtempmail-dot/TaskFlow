@@ -1,13 +1,10 @@
 name: Build Android APK
-
 on: [push]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-      # CHANGE THESE VALUES
       APP_NAME: "TaskFlow"
       APP_ID: "com.taskflow.app"
       IMAGE_URL: "https://i.ibb.co/4RCrrzsb/bbe2141eda57.png"
@@ -22,62 +19,42 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Install Dependencies
-        run: npm install --force
-
-      - name: Build Web Project
+      - name: Setup Project
         run: |
-          npm run build -- --base=./ || npm run build || true
-          if [ ! -d "dist" ]; then
-            mkdir -p dist
-            cp index.html dist/ 2>/dev/null || true
-          fi
-
-      - name: Setup Capacitor and Custom Icon
-        run: |
-          # Install necessary tools
-          npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/assets
+          # package.json না থাকলে তৈরি করে নেবে
+          echo '{"name": "taskflow", "dependencies": {}}' > package.json
+          npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/assets --force
           
-          # Create resources folder and download icon from URL
-          mkdir -p resources
+          # ফাইল সাজানো
+          mkdir -p dist resources
+          cp index.html styles.css app.js dist/ 2>/dev/null || true
+          
+          # আইকন ডাউনলোড
           curl -L "${{ env.IMAGE_URL }}" -o resources/icon.png
           
-          # Create capacitor.config.json
+          # কনফিগারেশন
           cat <<EOF > capacitor.config.json
           {
             "appId": "${{ env.APP_ID }}",
             "appName": "${{ env.APP_NAME }}",
             "webDir": "dist",
-            "server": {
-              "androidScheme": "https",
-              "hostname": "localhost",
-              "cleartext": true
-            }
+            "server": { "androidScheme": "https" }
           }
           EOF
-         
+          
           npx cap add android || true
-          
-          # Generate icons from the downloaded image
-          npx capacitor-assets generate --android
-          
+          npx capacitor-assets generate --android || true
           npx cap sync android
 
-      - name: Build Android APK
+      - name: Build APK
         run: |
           cd android
-          echo "configurations.all {
-              resolutionStrategy.eachDependency { DependencyResolveDetails details ->
-                  if (details.requested.group == 'org.jetbrains.kotlin') {
-                      details.useVersion '1.8.22'
-                  }
-              }
-          }" >> app/build.gradle
           chmod +x gradlew
           ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Mobile-App-APK
+          name: TaskFlow-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          
