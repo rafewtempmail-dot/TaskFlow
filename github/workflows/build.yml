@@ -8,7 +8,7 @@ jobs:
 
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-      ICON_URL: "https://i.imgur.com/AxNuIrO.png"
+      ICON_URL: "https://i.ibb.co/0j4yFzqM/38b2b0d4186c.jpg"
 
     steps:
       - name: Checkout Code
