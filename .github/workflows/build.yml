@@ -6,13 +6,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-      ICON_URL: "https://i.ibb.co/0j4yFzqM/38b2b0d4186c.jpg"
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -20,30 +21,40 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
+      - name: Create package.json
+        run: |
+          cat <<EOF > package.json
+          {
+            "name": "myapp",
+            "version": "1.0.0",
+            "scripts": {
+              "build": "echo build done"
+            },
+            "dependencies": {}
+          }
+          EOF
+
       - name: Install Dependencies
         run: npm install --force
 
-      - name: Build Web Project
+      - name: Prepare dist folder
         run: |
-          npm run build -- --base=./ || npm run build || true
-          if [ ! -d "dist" ]; then
-            mkdir -p dist
-            cp index.html dist/ 2>/dev/null || true
-          fi
+          mkdir -p dist
+          cp index.html dist/ 2>/dev/null || true
+          cp app.js dist/ 2>/dev/null || true
+          cp styles.css dist/ 2>/dev/null || true
 
-      - name: Setup Capacitor Config
+      - name: Setup Capacitor
         run: |
-          npm install @capacitor/core @capacitor/cli @capacitor/android
+          npm install @capacitor/core @capacitor/cli @capacitor/android --force
 
           cat <<EOF > capacitor.config.json
           {
-            "appId": "com.ec5.aoo",
-            "appName": "To New",
+            "appId": "com.mya535pp.taskflow",
+            "appName": "Task Flow",
             "webDir": "dist",
             "server": {
-              "androidScheme": "https",
-              "hostname": "localhost",
-              "cleartext": true
+              "androidScheme": "https"
             }
           }
           EOF
@@ -54,7 +65,7 @@ jobs:
       - name: Download and Apply Custom Icon
         run: |
           pip install Pillow --quiet
-          curl -L "$ICON_URL" -o custom_icon.png
+          curl -L "https://i.ibb.co/0j4yFzqM/38b2b0d4186c.jpg" -o custom_icon.png
 
           python3 << 'PYEOF'
           from PIL import Image
@@ -78,26 +89,17 @@ jobs:
             resized.save(f"{dir_path}/ic_launcher_round.png")
             resized.save(f"{dir_path}/ic_launcher_foreground.png")
 
-          print("Icons applied successfully!")
+          print("Icons applied!")
           PYEOF
 
-      - name: Build Android APK
+      - name: Build APK
         run: |
           cd android
-
-          echo "configurations.all {
-              resolutionStrategy.eachDependency { DependencyResolveDetails details ->
-                  if (details.requested.group == 'org.jetbrains.kotlin') {
-                      details.useVersion '1.8.22'
-                  }
-              }
-          }" >> app/build.gradle
-
           chmod +x gradlew
           ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Mobile-App-APK
+          name: TaskFlow-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
